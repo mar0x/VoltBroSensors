@@ -76,8 +76,7 @@ void VB_BMP280::initialize() {
     Serial.println(dig_P9);*/
 
     //VoltBroSensors::I2C_WriteReg(dev_addr, BMP280_REGISTER_CONFIG, BMP280_CONFIG);
-    uint8_t data = BMP280_CONFIG;
-    arduino_i2c_write(dev_addr, BMP280_REGISTER_CONFIG, 1, &data);
+    arduino_i2c_write_byte(dev_addr, BMP280_REGISTER_CONFIG, BMP280_CONFIG);
 
     // инициируем чтение для получения текущего давления
     read();
@@ -89,8 +88,7 @@ void VB_BMP280::initialize() {
 // Проверка соединения с девайсом
 bool VB_BMP280::testConnection() {
     //VoltBroSensors::I2C_ReadBytes(dev_addr, BMP280_REGISTER_CHIPID, 1, buffer);
-    arduino_i2c_read(dev_addr, BMP280_REGISTER_CHIPID, 1, buffer);
-    return buffer[0] == 0x58;
+    return 0x58 == arduino_i2c_read_byte(dev_addr, BMP280_REGISTER_CHIPID);
 }
 
 int32_t VB_BMP280::readTemperature()
@@ -123,9 +121,8 @@ boolean VB_BMP280::read() {
     int32_t adc_P;
 
     //VoltBroSensors::I2C_WriteReg(dev_addr, BMP280_REGISTER_CONTROL, BMP280_MEAS);
-    uint8_t data = BMP280_MEAS;
-    arduino_i2c_write(dev_addr, BMP280_REGISTER_CONTROL, 1, &data);
-    arduino_i2c_write(dev_addr, BMP280_REGISTER_CONTROL, 1, &data);
+    arduino_i2c_write_byte(dev_addr, BMP280_REGISTER_CONTROL, BMP280_MEAS);
+    arduino_i2c_write_byte(dev_addr, BMP280_REGISTER_CONTROL, BMP280_MEAS);
     DelayWhileMeasuring();
 
     // Запускаем измерение всего (по отдельности нельзя)
@@ -163,9 +160,7 @@ boolean VB_BMP280::read() {
 
 uint8_t I2C_getRegister(uint8_t dev_addr, uint8_t reg_addr)
 {
-    uint8_t buff;
-    arduino_i2c_read(dev_addr, reg_addr, 1, &buff);
-    return buff;
+    return arduino_i2c_read_byte(dev_addr, reg_addr);
 }
 
 void VB_BMP280::DelayWhileMeasuring(void) {

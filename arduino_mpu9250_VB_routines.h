@@ -50,8 +50,11 @@ void eMPL_send_data(unsigned char type, long *data);
 
 int arduino_i2c_write(unsigned char slave_addr, unsigned char reg_addr,
                        unsigned char length, unsigned char * data);
+void arduino_i2c_write_byte(unsigned char slave_addr, unsigned char reg_addr,
+                       unsigned char data);
 int arduino_i2c_read(unsigned char slave_addr, unsigned char reg_addr,
                        unsigned char length, unsigned char * data);
+int arduino_i2c_read_byte(unsigned char slave_addr, unsigned char reg_addr);
 
 #if defined(__cplusplus)
 }

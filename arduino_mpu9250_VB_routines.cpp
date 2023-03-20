@@ -45,6 +45,15 @@ int arduino_i2c_write(unsigned char slave_addr, unsigned char reg_addr,
 	return 0;
 }
 
+void arduino_i2c_write_byte(unsigned char slave_addr, unsigned char reg_addr,
+                       unsigned char data)
+{
+	Wire.beginTransmission(slave_addr);
+	Wire.write(reg_addr);
+	Wire.write(data);
+	Wire.endTransmission(true);
+}
+
 int arduino_i2c_read(unsigned char slave_addr, unsigned char reg_addr,
                        unsigned char length, unsigned char * data)
 {
@@ -58,6 +67,15 @@ int arduino_i2c_read(unsigned char slave_addr, unsigned char reg_addr,
 	}
 
 	return 0;
+}
+
+int arduino_i2c_read_byte(unsigned char slave_addr, unsigned char reg_addr)
+{
+	Wire.beginTransmission(slave_addr);
+	Wire.write(reg_addr);
+	Wire.endTransmission(false);
+	Wire.requestFrom(slave_addr, 1);
+	return Wire.read();
 }
 
 //dummy code that should be written
