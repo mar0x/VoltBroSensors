@@ -24,31 +24,24 @@ bool VB_BMP280::begin() {
     return begin(BMP280_DEFAULT_ADDRESS);
 }
 
-bool VB_BMP280::begin(uint8_t address) {
+bool VB_BMP280::begin(uint8_t address, uint8_t config, uint8_t control) {
     Wire.begin();
     dev_addr = address;
+    dev_control = control;
     if (testConnection()) {
-        initialize();
+        initialize(config);
         return true;
     } else {
         return false;
     }
 }
 
-void VB_BMP280::initialize() {
+void VB_BMP280::initialize(uint8_t config) {
     // Читаем калибровочные коэффициенты (константы для корректировки показаний температуры и давления) из EEPROM
-    dig_T1 = read16_LE(BMP280_REGISTER_DIG_T1);
-    dig_T2 = readS16_LE(BMP280_REGISTER_DIG_T2);
-    dig_T3 = readS16_LE(BMP280_REGISTER_DIG_T3);
-    dig_P1 = read16_LE(BMP280_REGISTER_DIG_P1);
-    dig_P2 = readS16_LE(BMP280_REGISTER_DIG_P2);
-    dig_P3 = readS16_LE(BMP280_REGISTER_DIG_P3);
-    dig_P4 = readS16_LE(BMP280_REGISTER_DIG_P4);
-    dig_P5 = readS16_LE(BMP280_REGISTER_DIG_P5);
-    dig_P6 = readS16_LE(BMP280_REGISTER_DIG_P6);
-    dig_P7 = readS16_LE(BMP280_REGISTER_DIG_P7);
-    dig_P8 = readS16_LE(BMP280_REGISTER_DIG_P8);
-    dig_P9 = readS16_LE(BMP280_REGISTER_DIG_P9);
+    uint16_t *v = &dig_T1;
+    for (uint8_t reg = BMP280_REGISTER_DIG_T1; reg <= BMP280_REGISTER_DIG_P9; reg += 2, v += 1) {
+        *v = read16_LE(reg);
+    }
     SLP = 0;
     /*Serial.print("t1 = ");
     Serial.println(dig_T1);
@@ -76,7 +69,11 @@ void VB_BMP280::initialize() {
     Serial.println(dig_P9);*/
 
     //VoltBroSensors::I2C_WriteReg(dev_addr, BMP280_REGISTER_CONFIG, BMP280_CONFIG);
-    arduino_i2c_write_byte(dev_addr, BMP280_REGISTER_CONFIG, BMP280_CONFIG);
+    arduino_i2c_write_byte(dev_addr, BMP280_REGISTER_CONFIG, config);
+
+    if ((dev_control & BMP280_MODE_NORMAL) == BMP280_MODE_NORMAL) {
+        arduino_i2c_write_byte(dev_addr, BMP280_REGISTER_CONTROL, dev_control);
+    }
 
     // инициируем чтение для получения текущего давления
     read();
@@ -91,17 +88,12 @@ bool VB_BMP280::testConnection() {
     return 0x58 == arduino_i2c_read_byte(dev_addr, BMP280_REGISTER_CHIPID);
 }
 
-int32_t VB_BMP280::readTemperature()
+int32_t VB_BMP280::readTemperature(uint8_t *buffer)
 {
   int32_t var1, var2;
 
   int32_t adc_T;
-//  int32_t T;
-
-  //VoltBroSensors::I2C_ReadBytes(dev_addr, BMP280_REGISTER_TEMPDATA, 3, buffer);
-  arduino_i2c_read(dev_addr, BMP280_REGISTER_TEMPDATA, 3, buffer);
-  adc_T = (((int32_t)buffer[0]) << 16)|(((int32_t)buffer[1]) << 8)|buffer[2];
-  adc_T >>= 4;
+  adc_T = (((int32_t)buffer[0]) << 12)|(((int32_t)buffer[1]) << 4)|(buffer[2] >> 4);
 
   var1  = ((((adc_T>>3) - ((int32_t)dig_T1 <<1))) *
        ((int32_t)dig_T2)) >> 11;
@@ -119,21 +111,23 @@ int32_t VB_BMP280::readTemperature()
 boolean VB_BMP280::read() {
     float var1, var2;
     int32_t adc_P;
+    uint8_t buffer[6];
 
     //VoltBroSensors::I2C_WriteReg(dev_addr, BMP280_REGISTER_CONTROL, BMP280_MEAS);
-    arduino_i2c_write_byte(dev_addr, BMP280_REGISTER_CONTROL, BMP280_MEAS);
-    arduino_i2c_write_byte(dev_addr, BMP280_REGISTER_CONTROL, BMP280_MEAS);
+    if ((dev_control & BMP280_MODE_NORMAL) == BMP280_MODE_FORCED) {
+        arduino_i2c_write_byte(dev_addr, BMP280_REGISTER_CONTROL, dev_control);
+        arduino_i2c_write_byte(dev_addr, BMP280_REGISTER_CONTROL, dev_control);
+    }
     DelayWhileMeasuring();
 
     // Запускаем измерение всего (по отдельности нельзя)
+    arduino_i2c_read(dev_addr, BMP280_REGISTER_PRESSUREDATA, 6, buffer);
+
     //int32_t temperature;
     //float pressure;
-    temp = readTemperature()/100.0;
+    temp = readTemperature(buffer + 3)/100.0;
 
-    //VoltBroSensors::I2C_ReadBytes(dev_addr, BMP280_REGISTER_PRESSUREDATA, 3, buffer);
-    arduino_i2c_read(dev_addr, BMP280_REGISTER_PRESSUREDATA, 3, buffer);
-    adc_P = (((int32_t)buffer[0]) << 16)|(((int32_t)buffer[1]) << 8)|buffer[2];
-    adc_P >>= 4;
+    adc_P = (((int32_t)buffer[0]) << 12)|(((int32_t)buffer[1]) << 4)|(buffer[2] >> 4);
 
     var1 = ((float)t_fine/2.0)-64000.0;
     var2 = var1 * var1 * ((float)dig_P6) / 32768.0;

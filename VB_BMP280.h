@@ -78,7 +78,7 @@ class VB_BMP280
 {
   public:
     bool begin();
-    bool begin(uint8_t address);
+    bool begin(uint8_t address, uint8_t config = BMP280_CONFIG, uint8_t control = BMP280_MEAS);
 
     
     boolean read();
@@ -93,19 +93,21 @@ class VB_BMP280
 
   private:
     bool testConnection();
-    void initialize();       //	Инициализация сенсора
+    void initialize(uint8_t config); //	Инициализация сенсора
     void DelayWhileMeasuring(); //	Задержка по состоянию флага преобразований (3-й бит в регистре 0xF3)    
-    int32_t readTemperature();
+    int32_t readTemperature(uint8_t *buffer);
     uint16_t read16_LE(uint8_t reg);
     int16_t readS16_LE(uint8_t reg);
 
     uint8_t dev_addr;
-    uint8_t buffer[3];
 
     float SLP; //	Расчётное давление на уровне моря в мм.рт.ст.
-    int16_t dig_T2, dig_T3, dig_P2, dig_P3, dig_P4, dig_P5, dig_P6, dig_P7, dig_P8, dig_P9;
-    uint16_t dig_P1, dig_T1;
+    uint16_t dig_T1;
+    int16_t dig_T2, dig_T3;
+    uint16_t dig_P1;
+    int16_t dig_P2, dig_P3, dig_P4, dig_P5, dig_P6, dig_P7, dig_P8, dig_P9;
     int32_t t_fine;
+    uint8_t dev_control;
 
     boolean ErrData = false;   //	Флаг ошибки чтения данных
 };
